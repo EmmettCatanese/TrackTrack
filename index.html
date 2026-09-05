@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LIRR Departure Board</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-top:      #3a3f4a;
+      --bg-bot:      #252830;
+      --panel-bg:    #1a1c20;
+      --panel-border:#3a3f4a;
+      --header-bg:   #0d0f12;
+      --row-odd:     #1f2127;
+      --row-even:    #17191e;
+      --text-light:  #f0f0f0;
+      --text-dim:    #7a8494;
+      --tab-active:  #1f2127;
+      --tab-inactive:#2c3038;
+      --tab-border:  #3a3f4a;
+      --scanner:     rgba(255,255,255,0.03);
+      --green:   #1a7a3c;
+      --purple:  #8b3fa8;
+      --gold:    #c8830a;
+      --teal:    #1a8a7a;
+      --magenta: #c02060;
+      --crimson: #b81030;
+      --gray:    #525860;
+      --blue:    #1a5fa8;
+      --orange:  #b84f10;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 2.5rem 1.5rem;
+      font-family: 'Share Tech Mono', monospace;
+      background:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.07'/%3E%3C/svg%3E"),
+        linear-gradient(160deg, var(--bg-top) 0%, var(--bg-bot) 100%);
+    }
+
+    /* ── LOGO ── */
+    .app-logo {
+      width: 100%;
+      max-width: 1000px;
+      display: flex;
+      justify-content: center;
+      margin-bottom: 1.75rem;
+    }
+    .app-logo img {
+      max-width: 480px;
+      width: 100%;
+      height: auto;
+      filter: invert(80%);
+      opacity: 0.92;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 3px;
+      margin-bottom: 0;
+      justify-content: center;
+      width: 100%;
+      max-width: 1000px;
+    }
+
+    .tab {
+      background: var(--tab-inactive);
+      color: var(--text-dim);
+      border: 1px solid var(--tab-border);
+      border-bottom: none;
+      cursor: pointer;
+      padding: 10px 26px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.82rem;
+      letter-spacing: 0.06em;
+      border-radius: 5px 5px 0 0;
+      text-transform: uppercase;
+      position: relative;
+    }
+
+    .tab::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: transparent;
+      border-radius: 5px 5px 0 0;
+    }
+
+    .tab.active {
+      background: var(--tab-active);
+      color: var(--text-light);
+    }
+
+    .tab.active::before {
+      background: #5a9fd4;
+    }
+
+    .board {
+      width: 100%;
+      max-width: 1000px;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 0 0 6px 6px;
+      overflow: hidden;
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.04) inset,
+        0 2px 4px rgba(0,0,0,0.4),
+        0 12px 48px rgba(0,0,0,0.7);
+      position: relative;
+      min-height: 200px;
+    }
+
+    tbody td:not(.dest) {
+      position: relative;
+    }
+    tbody td:not(.dest)::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 3px,
+        var(--scanner) 3px,
+        var(--scanner) 4px
+      );
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      position: relative;
+      z-index: 1;
+    }
+
+    thead tr {
+      background: var(--header-bg);
+      border-bottom: 2px solid #2a2d34;
+    }
+
+    thead th {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.5rem;
+      letter-spacing: 0.16em;
+      color: #8a9098;
+      padding: 16px 18px;
+      text-align: center;
+      text-transform: uppercase;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+
+    tbody tr:nth-child(odd)  { background: var(--row-odd); }
+    tbody tr:nth-child(even) { background: var(--row-even); }
+
+    tbody td {
+      padding: 13px 18px;
+      font-size: 1.45rem;
+      color: var(--text-light);
+      text-align: center;
+      letter-spacing: 0.05em;
+    }
+
+    tbody td.num {
+      color: var(--text-dim);
+      font-size: 1.25rem;
+    }
+
+
+    tbody td.trk.predicted {
+      color: var(--text-dim);
+      font-style: italic;
+    }
+    
+    tbody td.trk.unknown {
+      color: #3a3f4a;
+    }
+
+    .trk-meta {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      letter-spacing: 0.08em;
+      margin-top: 4px;
+      font-style: normal;
+      text-transform: uppercase;
+      opacity: 0.85;
+    }
+    .trk-meta .alt { color: var(--text-light); opacity: 0.7; }
+
+    td.dest {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.65rem;
+      letter-spacing: 0.1em;
+      text-align: center;
+      border-radius: 4px;
+      padding: 10px 20px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.15),
+                  inset 0 -1px 0 rgba(0,0,0,0.25);
+    }
+
+    .line-green   { background: var(--green);   color: #d4f0df; }
+    .line-purple  { background: var(--purple);  color: #f0d4ff; }
+    .line-gold    { background: var(--gold);    color: #1a1208; }
+    .line-teal    { background: var(--teal);    color: #cef2ec; }
+    .line-magenta { background: var(--magenta); color: #ffd4e6; }
+    .line-crimson { background: var(--crimson); color: #ffd4d8; }
+    .line-gray    { background: var(--gray);    color: #d4d8de; }
+    .line-blue    { background: var(--blue);    color: #d4e8ff; }
+    .line-orange  { background: var(--orange);  color: #ffe8d4; }
+
+    .status-bar {
+      background: #0d0f12;
+      border-top: 1px solid #2a2d34;
+      padding: 6px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.68rem;
+      letter-spacing: 0.08em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      position: relative;
+      z-index: 1;
+    }
+
+    .status-dot {
+      display: inline-block;
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #2ecc71;
+      margin-right: 6px;
+      box-shadow: 0 0 6px #2ecc71;
+      animation: pulse 2.4s ease-in-out infinite;
+    }
+    .status-dot.error {
+      background: #e74c3c;
+      box-shadow: 0 0 6px #e74c3c;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.4; }
+    }
+
+    .empty-state, .error-state {
+      padding: 60px 20px;
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 1rem;
+      letter-spacing: 0.05em;
+    }
+    .error-state { color: #e57373; }
+
+    .footer {
+      width: 100%;
+      max-width: 1000px;
+      margin-top: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 4px;
+    }
+
+    .header-logo {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.4rem;
+      letter-spacing: 0.18em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+    }
+
+    .header-logo span { color: var(--text-light); }
+
+    .clock {
+      font-size: 1.5rem;
+      letter-spacing: 0.12em;
+      color: var(--text-light);
+      text-shadow: 0 0 12px rgba(255,255,255,0.15);
+    }
+
+    .clock-label {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      letter-spacing: 0.1em;
+      text-align: right;
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-logo">
+    <img src="logo.png" alt="Track Track" />
+  </div>
+
+  <nav class="tabs" role="tablist" id="tabs">
+    <button class="tab active" role="tab" data-station="NYK">Penn Station</button>
+    <button class="tab"        role="tab" data-station="GCT">Grand Central</button>
+    <button class="tab"        role="tab" data-station="JAM">Jamaica</button>
+    <button class="tab"        role="tab" data-station="ATL">Atlantic Terminal</button>
+  </nav>
+
+  <div class="board" role="region" aria-label="Departure board">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Time</th>
+          <th>Trk</th>
+          <th>Destination</th>
+        </tr>
+      </thead>
+      <tbody id="train-rows"></tbody>
+    </table>
+    <div id="board-message"></div>
+
+    <div class="status-bar">
+      <span><span class="status-dot" id="status-dot"></span><span id="status-text">System Operational</span></span>
+      <span>Next update in <span id="countdown">60</span>s</span>
+      <span>Track assignments subject to change</span>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div></div>
+    <div>
+      <div class="clock" id="clock">--:--:--</div>
+      <div class="clock-label">Local Time</div>
+    </div>
+  </div>
+
+  <script>
+
+    const API_BASE = 'https://api.emmettcatanese.com/lirr';
+    const REFRESH_SECONDS = 30;
+    const ROW_LIMIT = 30;
+
+    const STATIONS = {
+      'LIC':'Long Island City','HPA':'Hunterspoint Avenue','NYK':'Penn Station','WDD':'Woodside','FHL':'Forest Hills',
+      'KGN':'Kew Gardens','ATL':'Atlantic Terminal','NAV':'Nostrand Avenue','ENY':'East New York','JAM':'Jamaica',
+      'SSM':'Mets-Willets Point','FLS':'Flushing-Main St','MHL':'Murray Hill','BDY':'Broadway','ADL':'Auburndale',
+      'BSD':'Bayside','DGL':'Douglaston','LNK':'Little Neck','GNK':'Great Neck','MHT':'Manhasset',
+      'PDM':'Plandome','PWS':'Port Washington','HOL':'Hollis','QVG':'Queens Village','BRT':'Belmont Park',
+      'BRS':'Bellerose','FPK':'Floral Park','SMR':'Stewart Manor','NBD':'Nassau Boulevard','GCY':'Garden City',
+      'CLP':'Country Life Press','HEM':'Hempstead','NHP':'New Hyde Park','MAV':'Merillon Avenue','MIN':'Mineola',
+      'EWN':'East Williston','ABT':'Albertson','RSN':'Roslyn','GVL':'Greenvale','GHD':'Glen Head',
+      'SCF':'Sea Cliff','GST':'Glen Street','GCV':'Glen Cove','LVL':'Locust Valley','OBY':'Oyster Bay',
+      'CPL':'Carle Place','WBY':'Westbury','HVL':'Hicksville','SYT':'Syosset','CSH':'Cold Spring Harbor',
+      'HUN':'Huntington','GWN':'Greenlawn','NPT':'Northport','KPK':'Kings Park','STN':'Smithtown',
+      'SJM':'St. James','BK':'Stony Brook','PJN':'Port Jefferson','BPG':'Bethpage','FMD':'Farmingdale',
+      'PLN':'Pinelawn','WYD':'Wyandanch','DPK':'Deer Park','BWD':'Brentwood','CI':'Central Islip',
+      'RON':'Ronkonkoma','MFD':'Medford','YPK':'Yaphank','RHD':'Riverhead','MAK':'Mattituck',
+      'SHD':'Southold','GPT':'Greenport','SAB':'St. Albans','LMR':'Locust Manor','LTN':'Laurelton',
+      'ROS':'Rosedale','VSM':'Valley Stream','WWD':'Westwood','MVN':'Malverne','LVW':'Lakeview',
+      'HGN':'Hempstead Gardens','WHD':'West Hempstead','GBN':'Gibson','HWT':'Hewlett','WMR':'Woodmere',
+      'CHT':'Cedarhurst','LCE':'Lawrence','IWD':'Inwood','FRY':'Far Rockaway','LYN':'Lynbrook',
+      'CAV':'Centre Avenue','ERY':'East Rockaway','ODE':'Oceanside','IPK':'Island Park','LBH':'Long Beach',
+      'RVC':'Rockville Centre','BWN':'Baldwin','FPT':'Freeport','MRK':'Merrick','BMR':'Bellmore',
+      'WGH':'Wantagh','SFD':'Seaford','MQA':'Massapequa','MPK':'Massapequa Park','AVL':'Amityville',
+      'CPG':'Copiague','LHT':'Lindenhurst','BTA':'Babylon','BSR':'Bay Shore','ISP':'Islip',
+      'GRV':'Great River','ODL':'Oakdale','SVL':'Sayville','PD':'Patchogue','BPT':'Bellport',
+      'MSY':'Mastic-Shirley','SPK':'Speonk','WHN':'Westhampton','HBY':'Hampton Bays','SHN':'Southampton',
+      'BHN':'Bridgehampton','EHN':'East Hampton','AGT':'Amagansett','MTK':'Montauk','GCT':'Grand Central',
+      'HAR':'Harold Interlocking','BOL':"Boland's Landing",'HIL':'Hillside Facility',
+    };
+
+    const BRANCH_COLORS = {
+      babylon:    'line-magenta',
+      montauk:    'line-teal',
+      ronkonkoma: 'line-purple',
+      greenport:  'line-purple',
+      portjeff:   'line-blue',
+      oysterbay:  'line-orange',
+      hempstead:  'line-gold',
+      westhemp:   'line-green',
+      farrock:    'line-magenta',
+      longbeach:  'line-blue',
+      portwash:   'line-crimson',
+      city:       'line-gray',
+    };
+
+    const STATION_BRANCH = {
+      FPT:'babylon', MRK:'babylon', BMR:'babylon', WGH:'babylon', SFD:'babylon',
+      MQA:'babylon', MPK:'babylon', AVL:'babylon', CPG:'babylon', LHT:'babylon', BTA:'babylon',
+      BWN:'babylon', RVC:'babylon',
+
+      BSR:'montauk', ISP:'montauk', GRV:'montauk', ODL:'montauk', SVL:'montauk',
+      PD:'montauk', BPT:'montauk', MSY:'montauk', SPK:'montauk', WHN:'montauk',
+      HBY:'montauk', SHN:'montauk', BHN:'montauk', EHN:'montauk', AGT:'montauk', MTK:'montauk',
+
+      BPG:'ronkonkoma', FMD:'ronkonkoma', PLN:'ronkonkoma', WYD:'ronkonkoma',
+      DPK:'ronkonkoma', BWD:'ronkonkoma', CI:'ronkonkoma', RON:'ronkonkoma',
+      MFD:'greenport', YPK:'greenport', RHD:'greenport', MAK:'greenport',
+      SHD:'greenport', GPT:'greenport',
+
+      HVL:'portjeff', SYT:'portjeff', CSH:'portjeff', HUN:'portjeff', GWN:'portjeff',
+      NPT:'portjeff', KPK:'portjeff', STN:'portjeff', SJM:'portjeff', BK:'portjeff', PJN:'portjeff',
+
+      EWN:'oysterbay', ABT:'oysterbay', RSN:'oysterbay', GVL:'oysterbay', GHD:'oysterbay',
+      SCF:'oysterbay', GST:'oysterbay', GCV:'oysterbay', LVL:'oysterbay', OBY:'oysterbay',
+
+      BRS:'hempstead', FPK:'hempstead', SMR:'hempstead', NBD:'hempstead',
+      GCY:'hempstead', CLP:'hempstead', HEM:'hempstead',
+
+      WWD:'westhemp', MVN:'westhemp', LVW:'westhemp', HGN:'westhemp', WHD:'westhemp',
+
+      GBN:'farrock', HWT:'farrock', WMR:'farrock', CHT:'farrock',
+      LCE:'farrock', IWD:'farrock', FRY:'farrock',
+
+      LYN:'longbeach', CAV:'longbeach', ERY:'longbeach', ODE:'longbeach',
+      IPK:'longbeach', LBH:'longbeach', VSM:'longbeach',
+
+      WDD:'portwash', FHL:'portwash', KGN:'portwash',
+      FLS:'portwash', MHL:'portwash', BDY:'portwash', ADL:'portwash', BSD:'portwash',
+      DGL:'portwash', LNK:'portwash', GNK:'portwash', MHT:'portwash', PDM:'portwash',
+      PWS:'portwash', SSM:'portwash',
+
+      SAB:'farrock', LMR:'farrock', LTN:'farrock', ROS:'farrock',
+      HOL:'hempstead', QVG:'hempstead',
+      NHP:'portjeff', MAV:'portjeff', MIN:'portjeff', CPL:'portjeff', WBY:'portjeff',
+
+      NYK:'city', GCT:'city', ATL:'city', JAM:'city',
+    };
+
+    function destLabel(code) {
+      return STATIONS[code] || code || '—';
+    }
+    function destClass(code) {
+      const branch = STATION_BRANCH[code];
+      return branch ? BRANCH_COLORS[branch] : 'line-gray';
+    }
+    function fmtTime(unixSec) {
+      const d = new Date(unixSec * 1000);
+      let h = d.getHours(), m = d.getMinutes();
+      const ampm = h >= 12 ? '' : ''; 
+      h = h % 12 || 12;
+      return `${h}:${String(m).padStart(2,'0')}`;
+    }
+
+    const tbody = document.getElementById('train-rows');
+    const boardMessage = document.getElementById('board-message');
+    const statusDot = document.getElementById('status-dot');
+    const statusText = document.getElementById('status-text');
+
+    function setStatus(ok, text) {
+      statusDot.classList.toggle('error', !ok);
+      statusText.textContent = text;
+    }
+
+    function clearBoard() {
+      tbody.innerHTML = '';
+      boardMessage.innerHTML = '';
+    }
+
+    function renderPredictions(preds) {
+      clearBoard();
+      if (!preds.length) {
+        boardMessage.innerHTML = '<div class="empty-state">No upcoming departures in the next two hours.</div>';
+        return;
+      }
+      const frag = document.createDocumentFragment();
+      for (const p of preds) {
+        const tr = document.createElement('tr');
+
+        let trk = '', trkClass = 'trk unknown', metaHTML = '';
+        if (p.status === 'already_posted') {
+          trk = p.predicted_track || '';
+          trkClass = 'trk';
+        } else if (p.status === 'predicted' && p.predicted_track) {
+          trk = p.predicted_track;
+          trkClass = 'trk predicted';
+          const confPct = Math.round((p.confidence || 0) * 100);
+          const alt = (p.candidates && p.candidates[1]) ? p.candidates[1].track : null;
+          const altPct = (p.candidates && p.candidates[1]) ? Math.round(p.candidates[1].probability * 100) : null;
+          const altHTML = alt ? ` · <span class="alt">or ${alt} (${altPct}%)</span>` : '';
+          metaHTML = `<div class="trk-meta">${confPct}%${altHTML}</div>`;
+        }
+
+        const destCode = p.destination || '';
+        const destName = destLabel(destCode);
+        const destCls = destClass(destCode);
+
+        tr.innerHTML = `
+          <td class="num">${p.train_num}</td>
+          <td>${fmtTime(p.target_scheduled)}</td>
+          <td class="${trkClass}">${trk}${metaHTML}</td>
+          <td class="dest ${destCls}">${destName}</td>
+        `;
+        frag.appendChild(tr);
+      }
+      tbody.appendChild(frag);
+    }
+
+    function renderError(msg) {
+      clearBoard();
+      boardMessage.innerHTML = `<div class="error-state">${msg}</div>`;
+    }
+
+
+    let currentStation = 'NYK';
+    let abortController = null;
+
+    async function loadStation(stationCode) {
+      currentStation = stationCode;
+      if (abortController) abortController.abort();
+      abortController = new AbortController();
+
+      try {
+        const url = `${API_BASE}/upcoming?station=${stationCode}&limit=${ROW_LIMIT}&window_hours=3`;
+        const res = await fetch(url, { signal: abortController.signal });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        renderPredictions(data.predictions || []);
+        setStatus(true, 'System Operational');
+      } catch (e) {
+        if (e.name === 'AbortError') return;
+        renderError(`Couldn't reach the prediction service. Will retry.`);
+        setStatus(false, 'Connection Issue');
+      }
+    }
+
+
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        loadStation(tab.dataset.station);
+        resetCountdown();
+      });
+    });
+
+    function updateClock() {
+      const now = new Date();
+      const h = String(now.getHours()).padStart(2,'0');
+      const m = String(now.getMinutes()).padStart(2,'0');
+      const s = String(now.getSeconds()).padStart(2,'0');
+      document.getElementById('clock').textContent = `${h}:${m}:${s}`;
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    let countdown = REFRESH_SECONDS;
+    const countdownEl = document.getElementById('countdown');
+    function resetCountdown() { countdown = REFRESH_SECONDS; countdownEl.textContent = countdown; }
+    setInterval(() => {
+      countdown -= 1;
+      if (countdown <= 0) {
+        loadStation(currentStation);
+        countdown = REFRESH_SECONDS;
+      }
+      countdownEl.textContent = countdown;
+    }, 1000);
+
+    loadStation('NYK');
+  </script>
+
+</body>
+</html>
