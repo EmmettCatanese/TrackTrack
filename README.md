@@ -24,7 +24,3 @@ Since everything is already in Python, I opted to utilize FastAPI. FastAPI isn't
 ## Using the app
 
 The app is designed to be similar to the radar.mta.info/departures board. The colors coincide with what LIRR also uses for each line. 
-
-### Hosting
-
-This is a little off topic but I opted to host the API / gatherer on an old m1 macbook air. The screen stopped working but I can still connect it to an external monitor. It works pretty great as a server. It absolutely SIPS electricity. Gathering data as well as responding to queries it has been using about 10-20 watt hours a day. I have been very impressed with the efficency. Additionally, I set up a cloudflare tunnel to connect it to my website which has also worked pretty well.
